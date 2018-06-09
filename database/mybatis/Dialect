@@ -1,0 +1,27 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by Fernflower decompiler)
+//
+
+package com.cld.database.dialect;
+
+public abstract class Dialect {
+    public Dialect() {
+    }
+
+    public abstract String spellPageSql(String var1, int var2, int var3);
+
+    public String getCountSql(String sql) {
+        return "SELECT COUNT(0) FROM (" + sql + ") TEMP";
+    }
+
+    public static enum Type {
+        MYSQL,
+        ORACLE,
+        SQLSERVER,
+        DB2;
+
+        private Type() {
+        }
+    }
+}
