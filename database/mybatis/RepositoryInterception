@@ -1,0 +1,187 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by Fernflower decompiler)
+//
+
+package com.cld.database.interception;
+
+import com.cld.infra.common.dto.CommonBaseDTO;
+import com.cld.infra.common.dto.XfaceGenericResponseDTO;
+import com.cld.infra.component.SessionContext;
+import com.cld.infra.util.ClassUtil;
+import com.cld.infra.util.CommonUtil;
+import com.cld.infra.util.IDUtil;
+import com.cld.infra.util.JsonUtil;
+import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
+import org.apache.ibatis.executor.Executor;
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.mapping.ParameterMapping;
+import org.apache.ibatis.plugin.Interceptor;
+import org.apache.ibatis.plugin.Intercepts;
+import org.apache.ibatis.plugin.Invocation;
+import org.apache.ibatis.plugin.Plugin;
+import org.apache.ibatis.plugin.Signature;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.session.ResultHandler;
+import org.apache.ibatis.session.RowBounds;
+import org.apache.ibatis.type.TypeHandlerRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@Intercepts({@Signature(
+    type = Executor.class,
+    method = "update",
+    args = {MappedStatement.class, Object.class}
+), @Signature(
+    type = Executor.class,
+    method = "query",
+    args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}
+)})
+public class RepositoryInterception implements Interceptor {
+    protected static final String LOG_PREFIX_SYMBOL = "******* ";
+    private static Logger logger = LoggerFactory.getLogger(RepositoryInterception.class);
+    protected static final String PROCESS_REPOSITORY_BEGIN = "Process Repository Begin...";
+    protected static final String PROCESS_REPOSITORY_END = "process Repository end ==> ";
+    protected static final String PROCESS_REPOSITORY_TIME_UNIT = " ms";
+    protected static final String userReferenceNumberFiledName = "userReferenceNumber";
+    protected static final String sessionContextFiledName = "sessionContext";
+
+    public RepositoryInterception() {
+    }
+
+    public Object intercept(Invocation invocation) throws Throwable {
+        long startTime = System.currentTimeMillis();
+        String logPrefix = "";
+        MappedStatement mappedStatement = (MappedStatement)invocation.getArgs()[0];
+        Object parameter = null;
+        if (invocation.getArgs().length > 1) {
+            parameter = invocation.getArgs()[1];
+        }
+
+        String classPath = mappedStatement.getId().trim().substring(0, mappedStatement.getId().trim().lastIndexOf("."));
+        Logger myLog = LoggerFactory.getLogger(Class.forName(classPath));
+        String sqlId = mappedStatement.getId();
+        BoundSql boundSql = mappedStatement.getBoundSql(parameter);
+        Log log = mappedStatement.getStatementLog();
+        logPrefix = getPrefix(parameter, myLog);
+        myLog.info(logPrefix + "Process Repository Begin...");
+        myLog.info(logPrefix + sqlId + "==>storeRequestDTO:" + JsonUtil.nonNullToJson(parameter));
+        Object returnValue = null;
+        myLog.info(logPrefix + "execute sql : [ " + showSql(mappedStatement.getConfiguration(), boundSql) + " ]");
+        returnValue = invocation.proceed();
+        if (CommonUtil.isNotNull(returnValue)) {
+            String type = returnValue instanceof ArrayList ? ((ArrayList)returnValue).get(0).getClass().getName() : returnValue.getClass().getName();
+            myLog.info(logPrefix + "storeResponseDTO: type = " + type + " value = " + JsonUtil.nonNullToJson(returnValue));
+        } else {
+            myLog.info(logPrefix + "storeResponseDTO: NULL ");
+        }
+
+        myLog.info(logPrefix + "process Repository end ==> " + " 总共执行了：" + (System.currentTimeMillis() - startTime) + " ms");
+        return returnValue;
+    }
+
+    private static String getParameterValue(Object obj) {
+        String value = null;
+        if (obj instanceof String) {
+            value = "'" + obj.toString() + "'";
+        } else if (obj instanceof Date) {
+            DateFormat formatter = DateFormat.getDateTimeInstance(2, 2, Locale.CHINA);
+            value = "'" + formatter.format(new Date()) + "'";
+        } else if (obj != null) {
+            value = obj.toString();
+        } else {
+            value = "";
+        }
+
+        return value;
+    }
+
+    protected static String showSql(Configuration configuration, BoundSql boundSql) {
+        Object parameterObject = boundSql.getParameterObject();
+        List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
+        String sql = boundSql.getSql().replaceAll("[\\s]+", " ");
+        if (parameterMappings.size() > 0 && parameterObject != null) {
+            TypeHandlerRegistry typeHandlerRegistry = configuration.getTypeHandlerRegistry();
+            if (typeHandlerRegistry.hasTypeHandler(parameterObject.getClass())) {
+                sql = sql.replaceFirst("\\?", getParameterValue(parameterObject));
+            } else {
+                MetaObject metaObject = configuration.newMetaObject(parameterObject);
+                Iterator var7 = parameterMappings.iterator();
+
+                while(var7.hasNext()) {
+                    ParameterMapping parameterMapping = (ParameterMapping)var7.next();
+                    String propertyName = parameterMapping.getProperty();
+                    Object obj;
+                    if (metaObject.hasGetter(propertyName)) {
+                        obj = metaObject.getValue(propertyName);
+                        sql = sql.replaceFirst("\\?", getParameterValue(obj));
+                    } else if (boundSql.hasAdditionalParameter(propertyName)) {
+                        obj = boundSql.getAdditionalParameter(propertyName);
+                        sql = sql.replaceFirst("\\?", getParameterValue(obj));
+                    }
+                }
+            }
+        }
+
+        return sql;
+    }
+
+    protected static String getPrefix(Object obj, Logger log) {
+        String sequence = null;
+        String logPrefix = null;
+        if (CommonUtil.isNotNull(obj) && obj instanceof Map) {
+            Map map = (Map)obj;
+            if (map.containsKey("userReferenceNumber")) {
+                sequence = String.valueOf(map.get("userReferenceNumber"));
+            }
+
+            Iterator iterator = map.keySet().iterator();
+
+            while(iterator.hasNext() && CommonUtil.isNull(sequence)) {
+                Object param = map.get(iterator.next());
+                if (param instanceof CommonBaseDTO) {
+                    sequence = getUserReferenceNumber(param);
+                }
+            }
+        } else if (CommonUtil.isNotNull(obj) && !CommonUtil.isBaseDataType(obj)) {
+            sequence = getUserReferenceNumber(obj);
+        }
+
+        if (CommonUtil.isNull(sequence)) {
+            sequence = "repositoryRandom-" + IDUtil.genrateShortUUID();
+            log.info("参数中找不到userReferenceNumber或者继承自CommonBaseDTO的类，随机生成一个流水号,RepositoryRandom : [" + sequence + " ] ");
+        }
+
+        logPrefix = "*******  [ " + sequence + " ] ";
+        return logPrefix;
+    }
+
+    private static String getUserReferenceNumber(Object obj) {
+        String userReferenceNumber = null;
+        if (obj instanceof CommonBaseDTO || obj instanceof XfaceGenericResponseDTO) {
+            SessionContext sessionContext = (SessionContext)ClassUtil.getObjFiledValue(obj, "sessionContext", SessionContext.class);
+            if (CommonUtil.isNotNull(sessionContext) && CommonUtil.isNotNull(sessionContext.getUserReferenceNumber())) {
+                userReferenceNumber = sessionContext.getUserReferenceNumber();
+            }
+        }
+
+        return userReferenceNumber;
+    }
+
+    public Object plugin(Object target) {
+        return Plugin.wrap(target, this);
+    }
+
+    public void setProperties(Properties properties) {
+    }
+}
