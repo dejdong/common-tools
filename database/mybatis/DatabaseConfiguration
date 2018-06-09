@@ -1,0 +1,117 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by Fernflower decompiler)
+//
+
+package com.cld.database;
+
+import com.alibaba.druid.filter.Filter;
+import com.alibaba.druid.filter.logging.Log4jFilter;
+import com.alibaba.druid.filter.logging.Slf4jLogFilter;
+import com.alibaba.druid.filter.stat.StatFilter;
+import com.alibaba.druid.pool.DruidDataSource;
+import com.alibaba.druid.wall.WallConfig;
+import com.alibaba.druid.wall.WallFilter;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import javax.sql.DataSource;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+
+@Configuration
+public class DatabaseConfiguration implements ApplicationContextAware, DatabaseConstants {
+    private ApplicationContext applicationContext;
+
+    public DatabaseConfiguration() {
+    }
+
+    @Bean(
+        name = {"dataSource"},
+        destroyMethod = "close",
+        initMethod = "init"
+    )
+    public DataSource dataSource() throws SQLException {
+        Environment env = this.getEnv();
+        DruidDataSource druidDataSource = new DruidDataSource(false);
+        druidDataSource.setUsername(env.getProperty("druid.datasource.username"));
+        druidDataSource.setUrl(env.getProperty("druid.datasource.url"));
+        druidDataSource.setPassword(env.getProperty("druid.datasource.password"));
+        druidDataSource.setFilters(env.getProperty("druid.datasource.filters"));
+        druidDataSource.setMaxActive((Integer)env.getProperty("druid.datasource.maxActive", Integer.class));
+        druidDataSource.setInitialSize((Integer)env.getProperty("druid.datasource.initialSize", Integer.class));
+        druidDataSource.setMaxWait((long)(Integer)env.getProperty("druid.datasource.maxWait", Integer.class));
+        druidDataSource.setMinIdle((Integer)env.getProperty("druid.datasource.minIdle", Integer.class));
+        druidDataSource.setTimeBetweenEvictionRunsMillis((long)(Integer)env.getProperty("druid.datasource.timeBetweenEvictionRunsMillis", Integer.class));
+        druidDataSource.setMinEvictableIdleTimeMillis((long)(Integer)env.getProperty("druid.datasource.minEvictableIdleTimeMillis", Integer.class));
+        druidDataSource.setValidationQuery(env.getProperty("druid.datasource.validationQuery"));
+        druidDataSource.setTestWhileIdle((Boolean)env.getProperty("druid.datasource.testWhileIdle", Boolean.class));
+        druidDataSource.setTestOnBorrow((Boolean)env.getProperty("druid.datasource.testOnBorrow", Boolean.class));
+        druidDataSource.setTestOnReturn((Boolean)env.getProperty("druid.datasource.testOnReturn", Boolean.class));
+        druidDataSource.setPoolPreparedStatements((Boolean)env.getProperty("druid.datasource.poolPreparedStatements", Boolean.class));
+        druidDataSource.setConnectionProperties("clientEncoding=UTF-8");
+        druidDataSource.setMaxOpenPreparedStatements((Integer)env.getRequiredProperty("druid.datasource.maxOpenPreparedStatements", Integer.class));
+        druidDataSource.setUseGlobalDataSourceStat(true);
+        List<Filter> filtersList = new ArrayList();
+        Log4jFilter log4jFilter = new Log4jFilter();
+        log4jFilter.setStatementExecutableSqlLogEnable(true);
+        WallConfig wallConfig = new WallConfig();
+        wallConfig.setMultiStatementAllow(true);
+        filtersList.add(log4jFilter);
+        druidDataSource.setProxyFilters(filtersList);
+        Iterator var6 = druidDataSource.getProxyFilters().iterator();
+
+        while(var6.hasNext()) {
+            Filter item = (Filter)var6.next();
+            if (item instanceof WallFilter) {
+                ((WallFilter)item).setConfig(wallConfig);
+            }
+        }
+
+        return druidDataSource;
+    }
+
+    public WallConfig wallConfig() {
+        WallConfig wallConfig = new WallConfig();
+        wallConfig.setDir("META-INF/druid/wall/mysql");
+        return wallConfig;
+    }
+
+    public WallFilter wallFilter(WallConfig wallConfig) {
+        WallFilter wallFilter = new WallFilter();
+        wallFilter.setDbType("mysql");
+        wallFilter.setConfig(wallConfig);
+        return null;
+    }
+
+    public Slf4jLogFilter slf4jLogFilter() {
+        Slf4jLogFilter slf4jLogFilter = new Slf4jLogFilter();
+        slf4jLogFilter.setStatementExecutableSqlLogEnable(true);
+        return slf4jLogFilter;
+    }
+
+    @Bean(
+        name = {"statFilter"}
+    )
+    public StatFilter statFilter() {
+        Environment env = this.getEnv();
+        StatFilter statFilter = new StatFilter();
+        statFilter.setSlowSqlMillis((long)(Integer)env.getProperty("druid.datasource.slowSqlMillis", Integer.class));
+        statFilter.setLogSlowSql((Boolean)env.getProperty("druid.datasource.isLogSlowSql", Boolean.class));
+        statFilter.setMergeSql(true);
+        return statFilter;
+    }
+
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+
+    private Environment getEnv() {
+        return this.applicationContext.getEnvironment();
+    }
+}
