@@ -1,0 +1,27 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by Fernflower decompiler)
+//
+
+package com.cld.database.dialect;
+
+import org.apache.commons.lang3.StringUtils;
+
+public class MysqlDialect extends Dialect {
+    private String orderBy;
+
+    public MysqlDialect(String orderBy) {
+        this.orderBy = orderBy;
+    }
+
+    public String spellPageSql(String sql, int offset, int limit) {
+        sql = sql.trim();
+        StringBuffer buffer = new StringBuffer(sql.length() + 100);
+        if (StringUtils.isNotEmpty(this.orderBy)) {
+            sql = sql + " ORDER BY " + this.orderBy;
+        }
+
+        buffer.append(" SELECT ROW_.* FROM (").append(sql).append(" limit ").append(offset).append(",").append(limit).append(") ROW_");
+        return buffer.toString();
+    }
+}
